@@ -1,0 +1,16 @@
+name: Footer wrapper probe
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.audit3/**'
+      - '.github/workflows/footer-wrapper-probe.yml'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install selenium
+      - run: python .audit3/footer_wrapper_probe.py
