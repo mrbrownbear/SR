@@ -37,8 +37,7 @@ def curl_fetch(url: str, rel: str) -> tuple[str, bool, str]:
         time.sleep(2 + attempt * 2)
     try: tmp.unlink(missing_ok=True)
     except Exception: pass
-    return rel, False, f'{url}
-{last}'
+    return rel, False, f'{url}\\n{last}'
 
 entries = []
 for line in MANIFEST.read_text().splitlines():
@@ -69,11 +68,8 @@ with ThreadPoolExecutor(max_workers=6) as ex:
             print(f'Fetched {done}/{len(entries)} assets')
 
 if failures:
-    print(f'
-{len(failures)} asset downloads failed:', file=sys.stderr)
+    print(f'\\n{len(failures)} asset downloads failed:', file=sys.stderr)
     for rel, err in failures:
-        print(f'
-[{rel}]
-{err}', file=sys.stderr)
+        print(f'\\n[{rel}]\\n{err}', file=sys.stderr)
     raise SystemExit(2)
 print(f'Fetched all {len(entries)} assets')
