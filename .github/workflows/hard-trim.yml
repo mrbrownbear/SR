@@ -4,97 +4,80 @@ on:
   push:
     paths:
       - '.github/workflows/hard-trim.yml'
+      - 'trim-trigger.txt'
 
 permissions:
   contents: write
 
 jobs:
   trim:
-    if: github.event.head_commit.message == 'Run hard trim across all three pages'
+    if: github.event.head_commit.message == 'Run hard trim trigger'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Remove header footer and lower sections
+      - name: Trim page HTML
         shell: bash
         run: |
           python3 <<'PY'
           from pathlib import Path
 
-          FILES = [
+          files = [
               Path('index.html'),
               Path('filmstrip-hero-3d-image-carousel-collection/index.html'),
               Path('korr-artistic-horizontal-portfolio-carousel/index.html'),
           ]
-          MARKER = 'h-what-makes-this-slider-revolution-template-a-must-have'
-          TARGET_SECTION = '<div class="wp-block-group alignwide has-quinary-background-color'
+          marker = 'h-what-makes-this-slider-revolution-template-a-must-have'
+          section_prefix = '<div class="wp-block-group alignwide has-quinary-background-color'
 
-          def remove_tag_block(text, tag):
-              lower = text.lower()
-              start = lower.find(f'<{tag}')
-              if start < 0:
+          def remove_element(text, tag):
+              low = text.lower()
+              a = low.find(f'<{tag}')
+              if a < 0:
                   return text
-              end_start = lower.find(f'</{tag}>', start)
-              if end_start < 0:
-                  raise RuntimeError(f'Closing </{tag}> not found')
-              end = end_start + len(f'</{tag}>')
-              return text[:start] + text[end:]
+              b = low.find(f'</{tag}>', a)
+              if b < 0:
+                  raise RuntimeError(f'missing closing {tag}')
+              b += len(f'</{tag}>')
+              return text[:a] + text[b:]
 
-          def trim_file(path):
+          for path in files:
               text = path.read_text(encoding='utf-8')
-              original_len = len(text)
+              old_size = len(text)
+              text = remove_element(text, 'header')
 
-              text = remove_tag_block(text, 'header')
+              m = text.find(marker)
+              if m < 0:
+                  raise RuntimeError(f'{path}: marker missing')
 
-              marker = text.find(MARKER)
-              if marker < 0:
-                  raise RuntimeError(f'{path}: target heading marker not found')
+              a = text.rfind(section_prefix, 0, m)
+              if a < 0:
+                  raise RuntimeError(f'{path}: target wrapper missing')
 
-              section_start = text.rfind(TARGET_SECTION, 0, marker)
-              if section_start < 0:
-                  section_start = text.rfind('<div class="wp-block-group', max(0, marker - 8000), marker)
-              if section_start < 0:
-                  raise RuntimeError(f'{path}: target section wrapper not found')
+              f = text.lower().find('<footer', m)
+              if f < 0:
+                  raise RuntimeError(f'{path}: footer boundary missing')
 
-              footer_start = text.lower().find('<footer', marker)
-              if footer_start < 0:
-                  raise RuntimeError(f'{path}: footer boundary not found after target section')
+              text = text[:a] + '</div>\n' + text[f:]
+              text = remove_element(text, 'footer')
 
-              # Remove the target section and every page section after it.
-              # Keep one closing div so the entry-content wrapper remains balanced.
-              text = text[:section_start] + '</div>\n' + text[footer_start:]
-
-              text = remove_tag_block(text, 'footer')
-
-              lower = text.lower()
-              if MARKER in text:
-                  raise RuntimeError(f'{path}: target marker still present')
-              if '<header' in lower:
-                  raise RuntimeError(f'{path}: header still present')
-              if '<footer' in lower:
-                  raise RuntimeError(f'{path}: footer still present')
-              if 'instantly captures visitors' in lower:
-                  raise RuntimeError(f'{path}: target section content still present')
-              if '<sr7-module' not in lower:
-                  raise RuntimeError(f'{path}: slider module was accidentally removed')
+              low = text.lower()
+              if marker in text or '<header' in low or '<footer' in low or 'instantly captures visitors' in low:
+                  raise RuntimeError(f'{path}: unwanted content remains')
+              if '<sr7-module' not in low:
+                  raise RuntimeError(f'{path}: slider module missing')
 
               path.write_text(text, encoding='utf-8')
-              print(f'{path}: {original_len} -> {len(text)} bytes')
-
-          for file in FILES:
-              trim_file(file)
+              print(path, old_size, len(text))
           PY
 
-      - name: Verify exact removal
+      - name: Verify pages
         shell: bash
         run: |
           set -e
-          for f in \
-            index.html \
-            filmstrip-hero-3d-image-carousel-collection/index.html \
-            korr-artistic-horizontal-portfolio-carousel/index.html
+          for f in index.html filmstrip-hero-3d-image-carousel-collection/index.html korr-artistic-horizontal-portfolio-carousel/index.html
           do
             ! grep -q 'h-what-makes-this-slider-revolution-template-a-must-have' "$f"
             ! grep -qi '<header' "$f"
@@ -103,13 +86,12 @@ jobs:
             grep -qi '<sr7-module' "$f"
           done
           git diff --check
-          git diff --stat
 
-      - name: Commit trimmed pages
+      - name: Commit result
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html filmstrip-hero-3d-image-carousel-collection/index.html korr-artistic-horizontal-portfolio-carousel/index.html
-          git commit -m 'Hard trim header footer and lower template sections'
+          git commit -m 'Trim page chrome and lower sections'
           git push origin HEAD:main
