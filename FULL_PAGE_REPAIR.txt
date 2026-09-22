@@ -1,0 +1,9 @@
+FULL PAGE REPAIR
+
+Replaced each static page header and footer with the exact current live DOM.
+Downloaded and linked the exact current first-party WordPress stylesheet stack.
+Appended current live WordPress inline style blocks for block/theme parity.
+Restored live body classes used by WordPress selectors.
+Localised header/footer images and responsive sources.
+Retained the already-working local Slider Revolution runtime and local REST bridge.
+All outbound image/resource URLs in the replaced chrome are local or blocked.

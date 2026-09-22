@@ -1,26 +1,16 @@
 (() => {
+  const ROUTES = {"3524:":"/__sitecloner/rest/3524.json","3526:":"/__sitecloner/rest/3526.json","3522:":"/__sitecloner/rest/3522.json","2847:":"/__sitecloner/rest/2847.json","3532:":"/__sitecloner/rest/3532.json","3529:":"/__sitecloner/rest/3529.json","3531:":"/__sitecloner/rest/3531.json","3530:":"/__sitecloner/rest/3530.json","3533:":"/__sitecloner/rest/3533.json","3535:":"/__sitecloner/rest/3535.json","3534:":"/__sitecloner/rest/3534.json","2847:9427":"/__sitecloner/rest/2847-9427.json","3538:":"/__sitecloner/rest/3538.json","2847:9428":"/__sitecloner/rest/2847-9428.json","2847:9430":"/__sitecloner/rest/2847-9430.json","2847:9429":"/__sitecloner/rest/2847-9429.json","2847:9431":"/__sitecloner/rest/2847-9431.json","2847:9434":"/__sitecloner/rest/2847-9434.json","2847:9433":"/__sitecloner/rest/2847-9433.json","2847:9435":"/__sitecloner/rest/2847-9435.json","2847:9437":"/__sitecloner/rest/2847-9437.json","2847:9436":"/__sitecloner/rest/2847-9436.json","2847:9432":"/__sitecloner/rest/2847-9432.json","2847:9438":"/__sitecloner/rest/2847-9438.json","3522:11360":"/__sitecloner/rest/3522-11360.json","3522:11362":"/__sitecloner/rest/3522-11362.json","3522:11361":"/__sitecloner/rest/3522-11361.json","3522:11363":"/__sitecloner/rest/3522-11363.json","3522:11364":"/__sitecloner/rest/3522-11364.json","3522:11367":"/__sitecloner/rest/3522-11367.json","3524:11374":"/__sitecloner/rest/3524-11374.json","3522:11366":"/__sitecloner/rest/3522-11366.json","3524:11377":"/__sitecloner/rest/3524-11377.json","3524:11378":"/__sitecloner/rest/3524-11378.json","3524:11376":"/__sitecloner/rest/3524-11376.json","3524:11379":"/__sitecloner/rest/3524-11379.json","3524:11375":"/__sitecloner/rest/3524-11375.json","3526:11391":"/__sitecloner/rest/3526-11391.json","3524:11380":"/__sitecloner/rest/3524-11380.json","3526:11390":"/__sitecloner/rest/3526-11390.json","3526:11393":"/__sitecloner/rest/3526-11393.json","3526:11394":"/__sitecloner/rest/3526-11394.json","3526:11392":"/__sitecloner/rest/3526-11392.json","3526:11395":"/__sitecloner/rest/3526-11395.json","3529:11407":"/__sitecloner/rest/3529-11407.json","3529:11409":"/__sitecloner/rest/3529-11409.json","3529:11410":"/__sitecloner/rest/3529-11410.json","3529:11411":"/__sitecloner/rest/3529-11411.json","3530:11412":"/__sitecloner/rest/3530-11412.json","3529:11413":"/__sitecloner/rest/3529-11413.json","3529:11414":"/__sitecloner/rest/3529-11414.json","3530:11416":"/__sitecloner/rest/3530-11416.json","3530:11417":"/__sitecloner/rest/3530-11417.json","3530:11418":"/__sitecloner/rest/3530-11418.json","3530:11419":"/__sitecloner/rest/3530-11419.json","3530:11420":"/__sitecloner/rest/3530-11420.json","3530:11421":"/__sitecloner/rest/3530-11421.json","3530:11422":"/__sitecloner/rest/3530-11422.json","3531:11428":"/__sitecloner/rest/3531-11428.json","3531:11427":"/__sitecloner/rest/3531-11427.json","3531:11429":"/__sitecloner/rest/3531-11429.json","3531:11430":"/__sitecloner/rest/3531-11430.json","3531:11431":"/__sitecloner/rest/3531-11431.json","3531:11432":"/__sitecloner/rest/3531-11432.json","3532:11433":"/__sitecloner/rest/3532-11433.json","3532:11434":"/__sitecloner/rest/3532-11434.json","3532:11435":"/__sitecloner/rest/3532-11435.json","3532:11436":"/__sitecloner/rest/3532-11436.json","3532:11438":"/__sitecloner/rest/3532-11438.json","3532:11437":"/__sitecloner/rest/3532-11437.json","3532:11439":"/__sitecloner/rest/3532-11439.json","3533:11440":"/__sitecloner/rest/3533-11440.json","3533:11442":"/__sitecloner/rest/3533-11442.json","3533:11441":"/__sitecloner/rest/3533-11441.json","3533:11446":"/__sitecloner/rest/3533-11446.json","3533:11443":"/__sitecloner/rest/3533-11443.json","3533:11444":"/__sitecloner/rest/3533-11444.json","3533:11445":"/__sitecloner/rest/3533-11445.json","3533:11448":"/__sitecloner/rest/3533-11448.json","3533:11447":"/__sitecloner/rest/3533-11447.json","3534:11449":"/__sitecloner/rest/3534-11449.json","3534:11452":"/__sitecloner/rest/3534-11452.json","3534:11450":"/__sitecloner/rest/3534-11450.json","3534:11453":"/__sitecloner/rest/3534-11453.json","3534:11451":"/__sitecloner/rest/3534-11451.json","3534:11455":"/__sitecloner/rest/3534-11455.json","3534:11456":"/__sitecloner/rest/3534-11456.json","3534:11454":"/__sitecloner/rest/3534-11454.json","3534:11457":"/__sitecloner/rest/3534-11457.json","3535:11458":"/__sitecloner/rest/3535-11458.json","3535:11459":"/__sitecloner/rest/3535-11459.json","3535:11460":"/__sitecloner/rest/3535-11460.json","3535:11461":"/__sitecloner/rest/3535-11461.json","3535:11462":"/__sitecloner/rest/3535-11462.json","3535:11464":"/__sitecloner/rest/3535-11464.json","3535:11463":"/__sitecloner/rest/3535-11463.json","3535:11465":"/__sitecloner/rest/3535-11465.json","3538:11484":"/__sitecloner/rest/3538-11484.json","3538:11485":"/__sitecloner/rest/3538-11485.json","3538:11483":"/__sitecloner/rest/3538-11483.json","3538:11486":"/__sitecloner/rest/3538-11486.json","3538:11487":"/__sitecloner/rest/3538-11487.json","3538:11488":"/__sitecloner/rest/3538-11488.json","3538:11489":"/__sitecloner/rest/3538-11489.json","3538:11490":"/__sitecloner/rest/3538-11490.json","3538:11491":"/__sitecloner/rest/3538-11491.json","3538:11492":"/__sitecloner/rest/3538-11492.json","3538:11493":"/__sitecloner/rest/3538-11493.json"};
   const mapRest = (u) => {
     try {
       const a = new URL(String(u && u.url ? u.url : u), location.href);
-      const isFilmstrip =
-        a.pathname.includes('/__sitecloner/blockedsliderrevolution/sliders/3538') ||
-        a.pathname.includes('/wp-json/sliderrevolution/sliders/3538') ||
-        a.pathname.includes('/__sitecloner/rest/sliderrevolution/sliders/3538');
-      if (isFilmstrip) {
-        const sid = a.searchParams.get('slideid');
-        if (sid) return '/__sitecloner/rest/3538-' + sid + '.json';
-      }
-    } catch (e) {}
-    return u;
+      const m = a.pathname.match(/(?:blocked|wp-json\/)?sliderrevolution\/sliders\/(\d+)/);
+      if (!m) return u;
+      const mid=m[1], sid=a.searchParams.get('slideid')||'';
+      return ROUTES[mid+':'+sid] || ROUTES[mid+':'] || u;
+    } catch(e) { return u; }
   };
-
-  const oldFetch = window.fetch && window.fetch.bind(window);
-  if (oldFetch) {
-    window.fetch = (u, o) => oldFetch(mapRest(u), o);
-  }
-
-  const oldOpen = XMLHttpRequest.prototype.open;
-  XMLHttpRequest.prototype.open = function(method, url, ...rest) {
-    return oldOpen.call(this, method, mapRest(url), ...rest);
-  };
+  const oldFetch=window.fetch&&window.fetch.bind(window);
+  if(oldFetch) window.fetch=(u,o)=>oldFetch(mapRest(u),o);
+  const oldOpen=XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open=function(method,url,...rest){return oldOpen.call(this,method,mapRest(url),...rest)};
 })();
