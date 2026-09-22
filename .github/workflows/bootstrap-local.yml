@@ -1,0 +1,34 @@
+name: Build local-only SR mirror
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.bootstrap/**'
+      - '.github/workflows/bootstrap-local.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch captured page resources
+        run: python .bootstrap/fetch_assets.py
+      - name: Rewrite and audit local-only build
+        run: python .bootstrap/postprocess.py
+      - name: Commit finished local mirror
+        run: |
+          rm -rf .bootstrap .github/workflows/bootstrap-local.yml
+          rmdir .github/workflows 2>/dev/null || true
+          rmdir .github 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Build local-only Slider Revolution mirror"
+          git push origin HEAD:main
