@@ -1,0 +1,7 @@
+RUNTIME ASSET FIX
+
+WP Rocket lazy loading removed from the three target pages.
+Captured local image, iframe, video and responsive image URLs are now assigned directly to browser src/srcset attributes.
+This prevents placeholder SVGs from remaining visible when the captured lazy loader fails to initialise.
+Verification issues: 0
+No lazy-loader dependency remains on the target pages.
