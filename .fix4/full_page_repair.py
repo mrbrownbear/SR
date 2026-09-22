@@ -2,7 +2,8 @@ from __future__ import annotations
 from pathlib import Path
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlsplit, unquote
-import subprocess, re, html, shutil, sys
+import subprocess, re, html, shutil, sys, json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 ROOT=Path(__file__).resolve().parents[1]
 PAGES=[
@@ -112,6 +113,69 @@ def clean_fragment(fragment,base):
     }
     tag["href"]=allowed.get(route,"#")
  return fragment
+
+
+# Cache Slider Revolution REST payloads for every module used by all three pages.
+# Some modules lazy-load only at mobile breakpoints or when scrolled into view.
+rest_dir=ROOT/"__sitecloner/rest"
+rest_dir.mkdir(parents=True,exist_ok=True)
+jobs=[]
+module_ids=set()
+slide_pairs=set()
+for item in PAGES:
+    src=item["path"].read_text(errors="ignore")
+    for mid in re.findall(r'<sr7-module\b[^>]*\bdata-id=["\'](\d+)["\']',src,re.I):
+        module_ids.add(mid)
+        # Restrict slide IDs to slides nested in the same module by scanning its block.
+        mm=re.search(rf'<sr7-module\b[^>]*\bdata-id=["\']{re.escape(mid)}["\'][^>]*>(.*?)</sr7-module>',src,re.I|re.S)
+        if mm:
+            for sid in re.findall(r'<sr7-slide\b[^>]*\bdata-key=["\'](\d+)["\']',mm.group(1),re.I):
+                slide_pairs.add((mid,sid))
+
+def rest_fetch(task):
+    mid,sid=task
+    if sid:
+        url=f"https://www.sliderrevolution.com/wp-json/sliderrevolution/sliders/{mid}?srengine=7&slideid={sid}"
+        dest=rest_dir/f"{mid}-{sid}.json"
+    else:
+        url=f"https://www.sliderrevolution.com/wp-json/sliderrevolution/sliders/{mid}?srengine=7"
+        dest=rest_dir/f"{mid}.json"
+    ok=fetch(url,dest,required=(sid is None))
+    return mid,sid,ok,dest
+
+tasks=[(m,None) for m in sorted(module_ids)] + sorted(slide_pairs)
+results=[]
+with ThreadPoolExecutor(max_workers=8) as ex:
+    futs=[ex.submit(rest_fetch,t) for t in tasks]
+    for fut in as_completed(futs):
+        results.append(fut.result())
+
+routes={}
+for mid,sid,ok,dest in results:
+    if not ok or not dest.exists(): continue
+    key=f"{mid}:{sid or ''}"
+    routes[key]="/"+str(dest.relative_to(ROOT)).replace("\\","/")
+
+rest_router = """(() => {
+  const ROUTES = __ROUTES__;
+  const mapRest = (u) => {
+    try {
+      const a = new URL(String(u && u.url ? u.url : u), location.href);
+      const m = a.pathname.match(/(?:blocked|wp-json\/)?sliderrevolution\/sliders\/(\d+)/);
+      if (!m) return u;
+      const mid=m[1], sid=a.searchParams.get('slideid')||'';
+      return ROUTES[mid+':'+sid] || ROUTES[mid+':'] || u;
+    } catch(e) { return u; }
+  };
+  const oldFetch=window.fetch&&window.fetch.bind(window);
+  if(oldFetch) window.fetch=(u,o)=>oldFetch(mapRest(u),o);
+  const oldOpen=XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open=function(method,url,...rest){return oldOpen.call(this,method,mapRest(url),...rest)};
+})();
+""".replace("__ROUTES__",json.dumps(routes,separators=(",",":")))
+(ROOT/"__sitecloner/rest-router.js").write_text(rest_router)
+print("REST ROUTES",len(routes),"modules",len(module_ids),"slide payloads",len(slide_pairs))
+
 
 for item in PAGES:
  p=item["path"];base=item["url"]
