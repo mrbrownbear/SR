@@ -41,8 +41,8 @@ jobs:
                 print("\n===",label,route,"===")
                 d.get("http://127.0.0.1:8000"+route);time.sleep(2)
                 state=d.execute_script("""
-                  const h=document.querySelector('header'),f=document.querySelector('footer');
-                  const hr=h?.getBoundingClientRect(),fr=f?.getBoundingClientRect();
+                  const h=document.querySelector('header'),f=document.querySelector('footer'),fb=document.querySelector('#footerbg');
+                  const hr=h?.getBoundingClientRect(),fr=f?.getBoundingClientRect(),fbr=fb?.getBoundingClientRect();
                   const logo=h?.querySelector('img');
                   const nav=h?.querySelector('nav, .wp-block-navigation, [class*="menu"]');
                   const mods=window.SR7&&SR7.M?Object.fromEntries(Object.entries(SR7.M).map(([k,v])=>[k,{inited:!!v.states?.inited,h:v.c?.module?.getBoundingClientRect().height||0}])):{};
@@ -52,6 +52,7 @@ jobs:
                     bodyH:document.body.scrollHeight,
                     header:{exists:!!h,height:hr?.height||0,display:h?getComputedStyle(h).display:null},
                     footer:{exists:!!f,height:fr?.height||0,display:f?getComputedStyle(f).display:null},
+                    footerbg:{exists:!!fb,height:fbr?.height||0,top:(fbr?.top||0)+scrollY,display:fb?getComputedStyle(fb).display:null},
                     logo:{exists:!!logo,w:logo?.naturalWidth||0,h:logo?.naturalHeight||0},
                     nav:{exists:!!nav,display:nav?getComputedStyle(nav).display:null},
                     jquery:!!window.jQuery,
@@ -62,7 +63,7 @@ jobs:
                 """)
                 print("STATE",json.dumps(state))
                 if not state["header"]["exists"] or state["header"]["height"]<40: failures.append(f"{label} {route}: header not rendered")
-                if not state["footer"]["exists"] or state["footer"]["height"]<120: failures.append(f"{label} {route}: footer not rendered")
+                if not state["footerbg"]["exists"] or state["footerbg"]["height"]<400: failures.append(f"{label} {route}: footer background/content not rendered")
                 if not state["logo"]["exists"] or state["logo"]["w"]<=0: failures.append(f"{label} {route}: header logo broken")
                 if not state["jquery"] or not state["sr7"]: failures.append(f"{label} {route}: runtime missing")
                 if state["visibleBroken"]: failures.append(f"{label} {route}: visible broken images {state['visibleBroken']}")
