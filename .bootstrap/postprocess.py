@@ -122,7 +122,7 @@ for rel in PAGE_ROUTES:
     page = ROOT / rel
     source = page.read_text(errors='ignore')
     candidates = set()
-    for attrval in re.findall(r'(?:src|href|poster|data-src|data-lazy-src|data-bg|data-thumb)\\s*=\\s*[\\'\\"]([^\\'\\"]+)', source, re.I):
+    for attrval in re.findall(r"(?:src|href|poster|data-src|data-lazy-src|data-bg|data-thumb)\s*=\s*['\"]([^'\"]+)", source, re.I):
         val = html.unescape(attrval).split('#',1)[0].split('?',1)[0]
         if not val.startswith('/') or val.startswith('/__sitecloner/'):
             continue
