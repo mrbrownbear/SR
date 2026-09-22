@@ -1,0 +1,9 @@
+STATIC RUNTIME REBUILD
+
+Restored synchronous local jQuery.
+Restored Slider Revolution tptools and sr7 engine scripts.
+Restored Slider Revolution, theme, navigation and menu stylesheets.
+Created exact local aliases for dynamically constructed SR7 resource paths.
+Localised Slider Revolution font files.
+Recovered first-party image sources previously replaced by the blocking placeholder.
+Runtime verification is performed by a headless Chromium job before commit.
