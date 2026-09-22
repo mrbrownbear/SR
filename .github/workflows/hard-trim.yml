@@ -1,0 +1,179 @@
+name: Hard trim three pages
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hard-trim.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  trim:
+    if: github.event.head_commit.message == 'Run hard trim across all three pages'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove header footer and lower sections
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          FILES = [
+              Path('index.html'),
+              Path('filmstrip-hero-3d-image-carousel-collection/index.html'),
+              Path('korr-artistic-horizontal-portfolio-carousel/index.html'),
+          ]
+          MARKER = 'h-what-makes-this-slider-revolution-template-a-must-have'
+          VOID = {
+              'area','base','br','col','embed','hr','img','input','link','meta',
+              'param','source','track','wbr'
+          }
+
+          class Trimmer(HTMLParser):
+              def __init__(self, text):
+                  super().__init__(convert_charrefs=False)
+                  self.text = text
+                  self.lines = text.splitlines(keepends=True)
+                  self.offsets = []
+                  total = 0
+                  for line in self.lines:
+                      self.offsets.append(total)
+                      total += len(line)
+                  self.stack = []
+                  self.entry = None
+                  self.entry_close_start = None
+                  self.cut_start = None
+                  self.ranges = []
+
+              def absolute(self):
+                  line, col = self.getpos()
+                  return self.offsets[line - 1] + col
+
+              def attrs_dict(self, attrs):
+                  return {k.lower(): (v or '') for k, v in attrs}
+
+              def handle_starttag(self, tag, attrs):
+                  tag = tag.lower()
+                  start = self.absolute()
+                  ad = self.attrs_dict(attrs)
+                  frame = {'tag': tag, 'start': start, 'attrs': ad}
+
+                  if tag == 'div' and 'entry-content' in ad.get('class', '').split() and self.entry is None:
+                      self.entry = frame
+
+                  if ad.get('id') == MARKER and self.entry is not None and self.cut_start is None:
+                      try:
+                          idx = self.stack.index(self.entry)
+                      except ValueError:
+                          idx = -1
+                      if idx >= 0 and len(self.stack) > idx + 1:
+                          self.cut_start = self.stack[idx + 1]['start']
+                      else:
+                          raise RuntimeError('Marker found but direct entry-content child could not be resolved')
+
+                  if tag not in VOID:
+                      self.stack.append(frame)
+
+              def handle_startendtag(self, tag, attrs):
+                  self.handle_starttag(tag, attrs)
+                  if self.stack and self.stack[-1]['tag'] == tag.lower():
+                      self.stack.pop()
+
+              def handle_endtag(self, tag):
+                  tag = tag.lower()
+                  end_start = self.absolute()
+                  end_gt = self.text.find('>', end_start)
+                  end = len(self.text) if end_gt < 0 else end_gt + 1
+
+                  match_index = None
+                  for i in range(len(self.stack) - 1, -1, -1):
+                      if self.stack[i]['tag'] == tag:
+                          match_index = i
+                          break
+                  if match_index is None:
+                      return
+
+                  frame = self.stack[match_index]
+                  del self.stack[match_index:]
+
+                  if tag in ('header', 'footer'):
+                      self.ranges.append((frame['start'], end))
+
+                  if frame is self.entry:
+                      self.entry_close_start = end_start
+
+          def trim_file(path):
+              text = path.read_text(encoding='utf-8')
+              parser = Trimmer(text)
+              parser.feed(text)
+              parser.close()
+
+              if parser.entry is None:
+                  raise RuntimeError(f'{path}: entry-content wrapper not found')
+              if parser.cut_start is None:
+                  raise RuntimeError(f'{path}: target section marker not found')
+              if parser.entry_close_start is None:
+                  raise RuntimeError(f'{path}: entry-content closing tag not found')
+
+              ranges = list(parser.ranges)
+              ranges.append((parser.cut_start, parser.entry_close_start))
+
+              merged = []
+              for start, end in sorted(ranges):
+                  if not merged or start > merged[-1][1]:
+                      merged.append([start, end])
+                  else:
+                      merged[-1][1] = max(merged[-1][1], end)
+
+              out = text
+              for start, end in reversed(merged):
+                  out = out[:start] + out[end:]
+
+              lower = out.lower()
+              if MARKER in out:
+                  raise RuntimeError(f'{path}: marker still present after trim')
+              if '<header' in lower:
+                  raise RuntimeError(f'{path}: header still present after trim')
+              if '<footer' in lower:
+                  raise RuntimeError(f'{path}: footer still present after trim')
+              if '<sr7-module' not in lower:
+                  raise RuntimeError(f'{path}: slider module was accidentally removed')
+
+              path.write_text(out, encoding='utf-8')
+              print(f'{path}: {len(text)} -> {len(out)} bytes')
+
+          for file in FILES:
+              trim_file(file)
+          PY
+
+      - name: Verify exact removal
+        shell: bash
+        run: |
+          set -e
+          for f in \
+            index.html \
+            filmstrip-hero-3d-image-carousel-collection/index.html \
+            korr-artistic-horizontal-portfolio-carousel/index.html
+          do
+            ! grep -q 'h-what-makes-this-slider-revolution-template-a-must-have' "$f"
+            ! grep -qi '<header' "$f"
+            ! grep -qi '<footer' "$f"
+            grep -qi '<sr7-module' "$f"
+          done
+          git diff --check
+          git diff --stat
+
+      - name: Commit trimmed pages
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html filmstrip-hero-3d-image-carousel-collection/index.html korr-artistic-horizontal-portfolio-carousel/index.html
+          git commit -m 'Hard trim header footer and lower template sections'
+          git push origin HEAD:main
