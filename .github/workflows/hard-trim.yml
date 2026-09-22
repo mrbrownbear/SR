@@ -21,7 +21,6 @@ jobs:
         shell: bash
         run: |
           python3 <<'PY'
-          from html.parser import HTMLParser
           from pathlib import Path
 
           FILES = [
@@ -30,123 +29,59 @@ jobs:
               Path('korr-artistic-horizontal-portfolio-carousel/index.html'),
           ]
           MARKER = 'h-what-makes-this-slider-revolution-template-a-must-have'
-          VOID = {
-              'area','base','br','col','embed','hr','img','input','link','meta',
-              'param','source','track','wbr'
-          }
+          TARGET_SECTION = '<div class="wp-block-group alignwide has-quinary-background-color'
 
-          class Trimmer(HTMLParser):
-              def __init__(self, text):
-                  super().__init__(convert_charrefs=False)
-                  self.text = text
-                  self.lines = text.splitlines(keepends=True)
-                  self.offsets = []
-                  total = 0
-                  for line in self.lines:
-                      self.offsets.append(total)
-                      total += len(line)
-                  self.stack = []
-                  self.entry = None
-                  self.entry_close_start = None
-                  self.cut_start = None
-                  self.ranges = []
-
-              def absolute(self):
-                  line, col = self.getpos()
-                  return self.offsets[line - 1] + col
-
-              def attrs_dict(self, attrs):
-                  return {k.lower(): (v or '') for k, v in attrs}
-
-              def handle_starttag(self, tag, attrs):
-                  tag = tag.lower()
-                  start = self.absolute()
-                  ad = self.attrs_dict(attrs)
-                  frame = {'tag': tag, 'start': start, 'attrs': ad}
-
-                  if tag == 'div' and 'entry-content' in ad.get('class', '').split() and self.entry is None:
-                      self.entry = frame
-
-                  if ad.get('id') == MARKER and self.entry is not None and self.cut_start is None:
-                      try:
-                          idx = self.stack.index(self.entry)
-                      except ValueError:
-                          idx = -1
-                      if idx >= 0 and len(self.stack) > idx + 1:
-                          self.cut_start = self.stack[idx + 1]['start']
-                      else:
-                          raise RuntimeError('Marker found but direct entry-content child could not be resolved')
-
-                  if tag not in VOID:
-                      self.stack.append(frame)
-
-              def handle_startendtag(self, tag, attrs):
-                  self.handle_starttag(tag, attrs)
-                  if self.stack and self.stack[-1]['tag'] == tag.lower():
-                      self.stack.pop()
-
-              def handle_endtag(self, tag):
-                  tag = tag.lower()
-                  end_start = self.absolute()
-                  end_gt = self.text.find('>', end_start)
-                  end = len(self.text) if end_gt < 0 else end_gt + 1
-
-                  match_index = None
-                  for i in range(len(self.stack) - 1, -1, -1):
-                      if self.stack[i]['tag'] == tag:
-                          match_index = i
-                          break
-                  if match_index is None:
-                      return
-
-                  frame = self.stack[match_index]
-                  del self.stack[match_index:]
-
-                  if tag in ('header', 'footer'):
-                      self.ranges.append((frame['start'], end))
-
-                  if frame is self.entry:
-                      self.entry_close_start = end_start
+          def remove_tag_block(text, tag):
+              lower = text.lower()
+              start = lower.find(f'<{tag}')
+              if start < 0:
+                  return text
+              end_start = lower.find(f'</{tag}>', start)
+              if end_start < 0:
+                  raise RuntimeError(f'Closing </{tag}> not found')
+              end = end_start + len(f'</{tag}>')
+              return text[:start] + text[end:]
 
           def trim_file(path):
               text = path.read_text(encoding='utf-8')
-              parser = Trimmer(text)
-              parser.feed(text)
-              parser.close()
+              original_len = len(text)
 
-              if parser.entry is None:
-                  raise RuntimeError(f'{path}: entry-content wrapper not found')
-              if parser.cut_start is None:
-                  raise RuntimeError(f'{path}: target section marker not found')
-              if parser.entry_close_start is None:
-                  raise RuntimeError(f'{path}: entry-content closing tag not found')
+              text = remove_tag_block(text, 'header')
 
-              ranges = list(parser.ranges)
-              ranges.append((parser.cut_start, parser.entry_close_start))
+              marker = text.find(MARKER)
+              if marker < 0:
+                  raise RuntimeError(f'{path}: target heading marker not found')
 
-              merged = []
-              for start, end in sorted(ranges):
-                  if not merged or start > merged[-1][1]:
-                      merged.append([start, end])
-                  else:
-                      merged[-1][1] = max(merged[-1][1], end)
+              section_start = text.rfind(TARGET_SECTION, 0, marker)
+              if section_start < 0:
+                  section_start = text.rfind('<div class="wp-block-group', max(0, marker - 8000), marker)
+              if section_start < 0:
+                  raise RuntimeError(f'{path}: target section wrapper not found')
 
-              out = text
-              for start, end in reversed(merged):
-                  out = out[:start] + out[end:]
+              footer_start = text.lower().find('<footer', marker)
+              if footer_start < 0:
+                  raise RuntimeError(f'{path}: footer boundary not found after target section')
 
-              lower = out.lower()
-              if MARKER in out:
-                  raise RuntimeError(f'{path}: marker still present after trim')
+              # Remove the target section and every page section after it.
+              # Keep one closing div so the entry-content wrapper remains balanced.
+              text = text[:section_start] + '</div>\n' + text[footer_start:]
+
+              text = remove_tag_block(text, 'footer')
+
+              lower = text.lower()
+              if MARKER in text:
+                  raise RuntimeError(f'{path}: target marker still present')
               if '<header' in lower:
-                  raise RuntimeError(f'{path}: header still present after trim')
+                  raise RuntimeError(f'{path}: header still present')
               if '<footer' in lower:
-                  raise RuntimeError(f'{path}: footer still present after trim')
+                  raise RuntimeError(f'{path}: footer still present')
+              if 'instantly captures visitors' in lower:
+                  raise RuntimeError(f'{path}: target section content still present')
               if '<sr7-module' not in lower:
                   raise RuntimeError(f'{path}: slider module was accidentally removed')
 
-              path.write_text(out, encoding='utf-8')
-              print(f'{path}: {len(text)} -> {len(out)} bytes')
+              path.write_text(text, encoding='utf-8')
+              print(f'{path}: {original_len} -> {len(text)} bytes')
 
           for file in FILES:
               trim_file(file)
@@ -164,6 +99,7 @@ jobs:
             ! grep -q 'h-what-makes-this-slider-revolution-template-a-must-have' "$f"
             ! grep -qi '<header' "$f"
             ! grep -qi '<footer' "$f"
+            ! grep -qi 'Instantly captures visitors' "$f"
             grep -qi '<sr7-module' "$f"
           done
           git diff --check
