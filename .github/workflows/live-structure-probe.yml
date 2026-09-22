@@ -1,0 +1,16 @@
+name: Live structure probe
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.audit2/**'
+      - '.github/workflows/live-structure-probe.yml'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install selenium
+      - run: python .audit2/live_structure_probe.py
