@@ -44,7 +44,7 @@ jobs:
                           if tag=="a": continue
                           q=u.split("#",1)[0].split("?",1)[0]
                           if not q or q=="/": continue
-                          f=(root/q.lstrip("/")) if q.startswith("/") else (self.page.parent/q)
+                          f=((root/q.lstrip("/")).resolve()) if q.startswith("/") else ((self.page.parent/q).resolve())
                           if q.endswith("/"): f=f/"index.html"
                           if not f.exists(): missing.append((str(self.page),tag,k,u))
           for p in pages:
