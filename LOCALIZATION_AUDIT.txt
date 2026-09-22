@@ -1,0 +1,21 @@
+LOCALIZATION AUDIT
+
+Primary routes
+/
+/korr-artistic-horizontal-portfolio-carousel/
+/filmstrip-hero-3d-image-carousel-collection/
+
+Checks
+HTML resource references checked: 558
+External HTML resource/navigation URLs: 0
+Missing HTML resources: 0
+CSS asset references checked: 47
+External CSS URLs: 0
+Missing CSS assets: 0
+Direct executable remote call patterns: 0
+
+Protections
+All captured runtime assets resolve to local repository paths.
+Content Security Policy restricts network activity to the local origin.
+The browser-side local-only firewall blocks unknown outbound HTTP, HTTPS, WS and WSS activity.
+Analytics and advertising bootstraps are removed or neutralized.
