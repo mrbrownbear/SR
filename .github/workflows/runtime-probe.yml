@@ -1,0 +1,30 @@
+name: Runtime probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.debug/**'
+      - '.github/workflows/runtime-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install selenium
+      - name: Start static server
+        run: |
+          python -m http.server 8000 >/tmp/server.log 2>&1 &
+          sleep 2
+      - name: Browser probe
+        run: python .debug/runtime_probe.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-probe
+          path: runtime-probe/
