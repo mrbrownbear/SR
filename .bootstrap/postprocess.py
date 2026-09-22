@@ -2,7 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import urlsplit
 from html.parser import HTMLParser
-import html, json, re, shutil, sys
+import html, json, re, shutil, sys, urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / '.bootstrap' / 'asset-manifest.tsv'
@@ -114,6 +114,38 @@ for rel,route in PAGE_ROUTES.items():
     {'key':'Referrer-Policy','value':'no-referrer'},
     {'key':'Permissions-Policy','value':'geolocation=(), microphone=(), camera=()'}]}]
 },indent=2)+'\n')
+
+# Fetch first-party static resources newly referenced by the current page HTML.
+# This is build-time only. The finished mirror has no live-site fallback.
+STATIC_EXTS = {'.css','.js','.png','.jpg','.jpeg','.webp','.gif','.svg','.ico','.woff','.woff2','.ttf','.otf','.eot','.mp4','.webm','.json'}
+for rel in PAGE_ROUTES:
+    page = ROOT / rel
+    source = page.read_text(errors='ignore')
+    candidates = set()
+    for attrval in re.findall(r'(?:src|href|poster|data-src|data-lazy-src|data-bg|data-thumb)\\s*=\\s*[\\'\\"]([^\\'\\"]+)', source, re.I):
+        val = html.unescape(attrval).split('#',1)[0].split('?',1)[0]
+        if not val.startswith('/') or val.startswith('/__sitecloner/'):
+            continue
+        if Path(val).suffix.lower() not in STATIC_EXTS:
+            continue
+        dest = ROOT / val.lstrip('/')
+        if not dest.exists():
+            candidates.add(val)
+    for val in sorted(candidates):
+        dest = ROOT / val.lstrip('/')
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        req = urllib.request.Request(
+            'https://www.sliderrevolution.com' + val,
+            headers={'User-Agent':'Mozilla/5.0','Referer':'https://www.sliderrevolution.com/'}
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                data = resp.read()
+            if data:
+                dest.write_bytes(data)
+                print('Fetched newly referenced local asset', val)
+        except Exception as e:
+            print('Could not fetch newly referenced asset', val, e, file=sys.stderr)
 
 URL_ATTRS={'src','href','poster','action','data-src','data-lazy-src','data-bg','data-thumb','srcset','data-srcset'}
 external=[]; missing=[]; html_refs=0
